@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'screens/inventory_screen.dart';
+import 'screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inizializzazione di Supabase con il Project URL
   await Supabase.initialize(
-    url: 'https://siazgzcueknboxbbjwnr.supabase.co',
-    anonKey: 'sb_publishable_0ry-H1OtcoOQ1hID234TLQ_dQ2BrliU', 
+    url: 'https://siazgzcueknbxobbjwnr.supabase.co',
+    publishableKey: 'sb_publishable_0ry-H1OtcoOQ1hID234TLQ_dQ2BrliU', 
   );
 
   runApp(const MyApp());
@@ -28,43 +29,134 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const AuthGate(),
     );
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final client = Supabase.instance.client;
+    final initialSession = client.auth.currentSession;
+
+    return StreamBuilder<AuthState>(
+      stream: client.auth.onAuthStateChange,
+      initialData: AuthState(
+        AuthChangeEvent.initialSession,
+        initialSession,
+      ),
+      builder: (context, snapshot) {
+        final session = snapshot.data?.session;
+        if (session == null) {
+          return const LoginScreen();
+        }
+        return const MainNavigationScreen();
+      },
+    );
+  }
+}
+
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({super.key});
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _screens = [
+    const InventoryScreen(),
+    const Center(child: Text('Modulo Tesoreria (in arrivo)')),
+    const Center(child: Text('Modulo Soci e Quote (in arrivo)')),
+    const Center(child: Text('Modulo Eventi (in arrivo)')),
+  ];
+
+  final List<String> _titles = [
+    'Inventario Sede',
+    'Tesoreria & Cassa',
+    'Gestione Soci',
+    'Eventi Personalizzati',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Inventory'),
+        title: Text(_titles[_selectedIndex]),
         centerTitle: true,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            const Icon(
-              Icons.check_circle_outline,
-              color: Colors.green,
-              size: 64,
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.deepOrange),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Smart Inventory',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  Text('Gestionale Sede', style: TextStyle(color: Colors.white70)),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Database Supabase Collegato! 🚀',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ListTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text('Inventario'),
+              selected: _selectedIndex == 0,
+              onTap: () {
+                setState(() => _selectedIndex = 0);
+                Navigator.pop(context);
+              },
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Pronto per costruire le sezioni dell\'app.',
-              style: TextStyle(color: Colors.grey[400]),
+            ListTile(
+              leading: const Icon(Icons.account_balance_wallet),
+              title: const Text('Tesoreria'),
+              selected: _selectedIndex == 1,
+              onTap: () {
+                setState(() => _selectedIndex = 1);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.people),
+              title: const Text('Soci & Quote'),
+              selected: _selectedIndex == 2,
+              onTap: () {
+                setState(() => _selectedIndex = 2);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.event),
+              title: const Text('Eventi'),
+              selected: _selectedIndex == 3,
+              onTap: () {
+                setState(() => _selectedIndex = 3);
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Esci'),
+              onTap: () async {
+                Navigator.pop(context);
+                await Supabase.instance.client.auth.signOut();
+              },
             ),
           ],
         ),
       ),
+      body: _screens[_selectedIndex],
     );
   }
 }
