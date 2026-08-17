@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/inventory_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/treasury_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,7 +72,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = [
     const InventoryScreen(),
-    const Center(child: Text('Modulo Tesoreria (in arrivo)')),
+    const TreasuryScreen(),
     const Center(child: Text('Modulo Soci e Quote (in arrivo)')),
     const Center(child: Text('Modulo Eventi (in arrivo)')),
   ];
