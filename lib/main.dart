@@ -4,6 +4,7 @@ import 'screens/inventory_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/treasury_screen.dart';
 import 'screens/members_screen.dart';
+import 'screens/events_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +76,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const InventoryScreen(),
     const TreasuryScreen(),
     const MembersScreen(),
-    const Center(child: Text('Modulo Eventi (in arrivo)')),
+    const EventsScreen(),
   ];
 
   final List<String> _titles = [
