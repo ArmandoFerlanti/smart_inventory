@@ -3,13 +3,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/inventory_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/treasury_screen.dart';
+import 'screens/members_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
     url: 'https://siazgzcueknbxobbjwnr.supabase.co',
-    anonKey: 'sb_publishable_0ry-H1OtcoOQ1hID234TLQ_dQ2BrliU',
+    publishableKey: 'sb_publishable_0ry-H1OtcoOQ1hID234TLQ_dQ2BrliU',
   );
 
   runApp(const MyApp());
@@ -73,7 +74,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> _screens = [
     const InventoryScreen(),
     const TreasuryScreen(),
-    const Center(child: Text('Modulo Soci e Quote (in arrivo)')),
+    const MembersScreen(),
     const Center(child: Text('Modulo Eventi (in arrivo)')),
   ];
 
