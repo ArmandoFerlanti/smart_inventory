@@ -5,6 +5,7 @@ import 'screens/login_screen.dart';
 import 'screens/treasury_screen.dart';
 import 'screens/members_screen.dart';
 import 'screens/events_screen.dart';
+import 'screens/cards_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,6 +78,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const TreasuryScreen(),
     const MembersScreen(),
     const EventsScreen(),
+    const CardsScreen(),
   ];
 
   final List<String> _titles = [
@@ -84,6 +86,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     'Tesoreria & Cassa',
     'Gestione Soci',
     'Eventi Personalizzati',
+    'Schede',
   ];
 
   @override
@@ -144,6 +147,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               selected: _selectedIndex == 3,
               onTap: () {
                 setState(() => _selectedIndex = 3);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.credit_card),
+              title: const Text('Schede'),
+              selected: _selectedIndex == 4,
+              onTap: () {
+                setState(() => _selectedIndex = 4);
                 Navigator.pop(context);
               },
             ),
