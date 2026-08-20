@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -327,10 +326,16 @@ class _CardsScreenState extends State<CardsScreen> {
 
     final pdf = pw.Document();
 
+    final fontData = await rootBundle.load('assets/fonts/DejaVuSans.ttf');
+    final fontDataBold = await rootBundle.load('assets/fonts/DejaVuSans-Bold.ttf');
+    final font = pw.Font.ttf(fontData);
+    final fontBold = pw.Font.ttf(fontDataBold);
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
+        theme: pw.ThemeData.withFont(base: font, bold: fontBold),
         header: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
