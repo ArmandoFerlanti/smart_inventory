@@ -397,7 +397,7 @@ class _CardsScreenState extends State<CardsScreen> {
                   children: [
                     _pdfCell('${card['card_number']}'),
                     _pdfCell(card['assigned_to'] as String? ?? ''),
-                    _pdfCell(_formatCurrency(card['value'] as num)),
+                    _pdfCell('€ ${(card['value'] as num).toStringAsFixed(2).replaceAll('.', ',')}'),
                     _pdfCell(
                       _formatDate(
                         DateTime.parse(card['created_at'] as String),
