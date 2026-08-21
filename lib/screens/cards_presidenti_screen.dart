@@ -17,26 +17,61 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
   final _supabase = Supabase.instance.client;
   bool _isExporting = false;
 
-  static const String _euroSign = '\u20AC';
-
-  String _formatCurrency(num value) {
-    final formatter =
-        NumberFormat.currency(locale: 'it_IT', symbol: '$_euroSign ');
-    return formatter.format(value);
-  }
-
   String _formatDate(DateTime date) {
     return DateFormat('dd/MM/yyyy').format(date);
   }
+
+  String _formatDateDb(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  DateTime? _parseDate(dynamic value) =>
+      value == null ? null : DateTime.parse(value as String);
+
+  String _formatOptionalDate(dynamic value) {
+    final date = _parseDate(value);
+    return date != null ? _formatDate(date) : '-';
+  }
+
+  // ===========================
+  // DATE FIELD
+  // ===========================
+
+  Widget _dateField({
+    required String label,
+    required DateTime? value,
+    required ValueChanged<DateTime?> onPicked,
+  }) =>
+      InkWell(
+        onTap: () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: value ?? DateTime.now(),
+            firstDate: DateTime(2000),
+            lastDate: DateTime(2100),
+          );
+          if (picked != null) onPicked(picked);
+        },
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            suffixIcon: const Icon(Icons.calendar_today_outlined, size: 20),
+          ),
+          child: Text(
+            value != null ? _formatDate(value) : '',
+            style: TextStyle(color: value != null ? null : Colors.grey),
+          ),
+        ),
+      );
 
   // ===========================
   // ADD / EDIT DIALOG
   // ===========================
 
   void _showAddCardDialog() {
-    final numberController = TextEditingController();
     final assignedController = TextEditingController();
-    double selectedValue = 10;
+    DateTime? releasedOn;
+    DateTime? expiresOn;
     var isSaving = false;
     String? errorMessage;
 
@@ -45,11 +80,11 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, dialogSetState) {
           Future<void> save() async {
-            final cardNumber = int.tryParse(numberController.text.trim());
+            final assignedTo = assignedController.text.trim();
 
-            if (cardNumber == null) {
+            if (assignedTo.isEmpty) {
               dialogSetState(
-                () => errorMessage = 'Inserisci un numero valido.',
+                () => errorMessage = 'Inserisci il nome della persona.',
               );
               return;
             }
@@ -61,9 +96,11 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
 
             try {
               await _supabase.from('cards_presidenti').insert({
-                'card_number': cardNumber,
-                'assigned_to': assignedController.text.trim(),
-                'value': selectedValue,
+                'assigned_to': assignedTo,
+                'released_on':
+                    releasedOn != null ? _formatDateDb(releasedOn!) : null,
+                'expires_on':
+                    expiresOn != null ? _formatDateDb(expiresOn!) : null,
               });
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) setState(() {});
@@ -71,12 +108,7 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
               debugPrint('Errore salvataggio scheda presidente: $e');
               dialogSetState(() {
                 isSaving = false;
-                if (e.toString().contains('duplicate key') ||
-                    e.toString().contains('unique constraint')) {
-                  errorMessage = 'Esiste già una scheda con questo numero.';
-                } else {
-                  errorMessage = 'Errore durante il salvataggio: $e';
-                }
+                errorMessage = 'Errore durante il salvataggio: $e';
               });
             }
           }
@@ -87,31 +119,22 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: numberController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Numero Scheda'),
-                ),
-                TextField(
                   controller: assignedController,
-                  decoration: const InputDecoration(
-                    labelText: 'Assegnata a',
-                  ),
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Assegnata a'),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<double>(
-                  initialValue: selectedValue,
-                  decoration: const InputDecoration(
-                    labelText: 'Valore',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 10, child: Text('10 €')),
-                    DropdownMenuItem(value: 20, child: Text('20 €')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      dialogSetState(() => selectedValue = val);
-                    }
-                  },
+                _dateField(
+                  label: 'Rilasciata il',
+                  value: releasedOn,
+                  onPicked: (date) =>
+                      dialogSetState(() => releasedOn = date),
+                ),
+                const SizedBox(height: 12),
+                _dateField(
+                  label: 'Scadenza',
+                  value: expiresOn,
+                  onPicked: (date) => dialogSetState(() => expiresOn = date),
                 ),
                 if (errorMessage != null)
                   Padding(
@@ -146,13 +169,11 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
   }
 
   void _showEditCardDialog(Map<String, dynamic> card) {
-    final numberController = TextEditingController(
-      text: '${card['card_number']}',
-    );
     final assignedController = TextEditingController(
       text: card['assigned_to'] ?? '',
     );
-    double selectedValue = (card['value'] as num).toDouble();
+    DateTime? releasedOn = _parseDate(card['released_on']);
+    DateTime? expiresOn = _parseDate(card['expires_on']);
     var isSaving = false;
     String? errorMessage;
 
@@ -161,11 +182,11 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, dialogSetState) {
           Future<void> save() async {
-            final cardNumber = int.tryParse(numberController.text.trim());
+            final assignedTo = assignedController.text.trim();
 
-            if (cardNumber == null) {
+            if (assignedTo.isEmpty) {
               dialogSetState(
-                () => errorMessage = 'Inserisci un numero valido.',
+                () => errorMessage = 'Inserisci il nome della persona.',
               );
               return;
             }
@@ -177,9 +198,11 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
 
             try {
               await _supabase.from('cards_presidenti').update({
-                'card_number': cardNumber,
-                'assigned_to': assignedController.text.trim(),
-                'value': selectedValue,
+                'assigned_to': assignedTo,
+                'released_on':
+                    releasedOn != null ? _formatDateDb(releasedOn!) : null,
+                'expires_on':
+                    expiresOn != null ? _formatDateDb(expiresOn!) : null,
               }).eq('id', card['id']);
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) setState(() {});
@@ -187,12 +210,7 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
               debugPrint('Errore aggiornamento scheda presidente: $e');
               dialogSetState(() {
                 isSaving = false;
-                if (e.toString().contains('duplicate key') ||
-                    e.toString().contains('unique constraint')) {
-                  errorMessage = 'Esiste già una scheda con questo numero.';
-                } else {
-                  errorMessage = 'Errore durante il salvataggio: $e';
-                }
+                errorMessage = 'Errore durante il salvataggio: $e';
               });
             }
           }
@@ -203,31 +221,22 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: numberController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Numero Scheda'),
-                ),
-                TextField(
                   controller: assignedController,
-                  decoration: const InputDecoration(
-                    labelText: 'Assegnata a',
-                  ),
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Assegnata a'),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<double>(
-                  initialValue: selectedValue,
-                  decoration: const InputDecoration(
-                    labelText: 'Valore',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 10, child: Text('10 €')),
-                    DropdownMenuItem(value: 20, child: Text('20 €')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      dialogSetState(() => selectedValue = val);
-                    }
-                  },
+                _dateField(
+                  label: 'Rilasciata il',
+                  value: releasedOn,
+                  onPicked: (date) =>
+                      dialogSetState(() => releasedOn = date),
+                ),
+                const SizedBox(height: 12),
+                _dateField(
+                  label: 'Scadenza',
+                  value: expiresOn,
+                  onPicked: (date) => dialogSetState(() => expiresOn = date),
                 ),
                 if (errorMessage != null)
                   Padding(
@@ -265,13 +274,13 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
   // DELETE
   // ===========================
 
-  Future<void> _deleteCard(String id, int cardNumber) async {
+  Future<void> _deleteCard(String id, String assignedTo) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Elimina scheda'),
         content: Text(
-          'Vuoi eliminare definitivamente la scheda n. $cardNumber?',
+          'Vuoi eliminare definitivamente la scheda di $assignedTo?',
         ),
         actions: [
           TextButton(
@@ -370,28 +379,28 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
         build: (context) => [
           pw.Table(
             columnWidths: const {
-              0: pw.FlexColumnWidth(1),
-              1: pw.FlexColumnWidth(3),
+              0: pw.FlexColumnWidth(2),
+              1: pw.FlexColumnWidth(1.5),
               2: pw.FlexColumnWidth(1.5),
-              3: pw.FlexColumnWidth(2),
+              3: pw.FlexColumnWidth(1.5),
             },
             border: pw.TableBorder.all(color: PdfColors.grey, width: 0.5),
             children: [
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey300),
                 children: [
-                  _pdfHeaderCell('N.'),
                   _pdfHeaderCell('Assegnata a'),
-                  _pdfHeaderCell('Valore'),
+                  _pdfHeaderCell('Rilasciata il'),
+                  _pdfHeaderCell('Scadenza'),
                   _pdfHeaderCell('Data Creazione'),
                 ],
               ),
               for (final card in cards)
                 pw.TableRow(
                   children: [
-                    _pdfCell('${card['card_number']}'),
                     _pdfCell(card['assigned_to'] as String? ?? ''),
-                    _pdfCell('€ ${(card['value'] as num).toStringAsFixed(2).replaceAll('.', ',')}'),
+                    _pdfCell(_formatOptionalDate(card['released_on'])),
+                    _pdfCell(_formatOptionalDate(card['expires_on'])),
                     _pdfCell(
                       _formatDate(
                         DateTime.parse(card['created_at'] as String),
@@ -414,7 +423,7 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
       final items = await _supabase
           .from('cards_presidenti')
           .select()
-          .order('card_number');
+          .order('assigned_to');
       final bytes = await _generatePdf(items);
       if (!mounted) return;
       final today = DateTime.now();
@@ -443,7 +452,7 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _supabase.from('cards_presidenti').select().order('card_number'),
+        future: _supabase.from('cards_presidenti').select().order('assigned_to'),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -467,6 +476,7 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
           }
 
           final cards = snapshot.data!;
+          final today = DateTime.now();
 
           return Column(
             children: [
@@ -494,7 +504,10 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
                   itemCount: cards.length,
                   itemBuilder: (context, index) {
                     final card = cards[index];
-                    final value = card['value'] as num;
+                    final assignedTo = card['assigned_to'] as String? ?? '';
+                    final expiresOn = _parseDate(card['expires_on']);
+                    final isExpired = expiresOn != null &&
+                        expiresOn.isBefore(today);
 
                     return Card(
                       margin: const EdgeInsets.symmetric(
@@ -504,14 +517,15 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
                       child: ListTile(
                         leading: Icon(
                           Icons.assignment_ind,
-                          color: value == 20 ? Colors.amber : Colors.blue,
+                          color: isExpired ? Colors.redAccent : Colors.blue,
                         ),
                         title: Text(
-                          'Scheda n. ${card['card_number']}',
+                          assignedTo,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          '${card['assigned_to'] ?? 'Non assegnata'}  ·  ${_formatCurrency(value)}',
+                          'Rilasciata il: ${_formatOptionalDate(card['released_on'])}'
+                          '  ·  Scadenza: ${_formatOptionalDate(card['expires_on'])}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -524,10 +538,7 @@ class _CardsPresidentiScreenState extends State<CardsPresidentiScreen> {
                             IconButton(
                               icon: const Icon(Icons.delete_outline),
                               tooltip: 'Elimina',
-                              onPressed: () => _deleteCard(
-                                card['id'],
-                                card['card_number'],
-                              ),
+                              onPressed: () => _deleteCard(card['id'], assignedTo),
                             ),
                           ],
                         ),
